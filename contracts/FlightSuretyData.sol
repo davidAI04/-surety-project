@@ -16,8 +16,15 @@ contract FlightSuretyData is ReentrancyGuard{
     mapping(address => Airline) private airlines; //mapping for all airlines
     mapping(address => mapping(address => bool)) private voteTracker; //Allow track an airline votes to accept another airline
     mapping(bytes32 => Flight) private flights; //Flights registration
-    mapping(address => Surety[]) private insurees; //create a One-to-Many relationship between passengers and their surety
-    
+    //Create a One-to-Many relationship between passengers and their fligth insurance. 
+    //To know how many sureties has a passenger
+    mapping(address => bytes32[]) private insureesByPerson; 
+    mapping(address => mapping(bytes32 => Surety)) insurees; //Information for a fligth insurance associated to an specific passenger    
+
+    /**
+    * STRUCTS 
+    */
+
     struct Airline {
         bool accepted; //In case of the airline should be voted, once reached the minimum votes accepted will change to true
         uint256 votes; // Votes counter
@@ -36,8 +43,9 @@ contract FlightSuretyData is ReentrancyGuard{
     }
 
     struct Surety {
-      address payable passenger; //ensured person address
+      address passenger; //ensured person address
       bytes32 fligthKey; //fligth to be ensured
+      uint256 value; //Value payed for insurance
     }
 
     /********************************************************************************************/
@@ -49,11 +57,7 @@ contract FlightSuretyData is ReentrancyGuard{
     * @dev Constructor
     *      The deploying account becomes contractOwner
     */
-    constructor
-                                (
-                                ) 
-                                
-    {
+    constructor () {
         contractOwner = msg.sender;
     }
 
@@ -168,13 +172,27 @@ contract FlightSuretyData is ReentrancyGuard{
       _;
     }
 
+    /**
+    * @dev check that the flight is not already in progress
+    */
     modifier isNotAFlightInProgress(bytes32 fligthKey) {
       require(flights[fligthKey].statusCode == 0, "Fligth is already in progress");
       _;
     }
 
+    /**
+    * @dev check that the passenger is not insureed yet
+    */
     modifier isNotInsureedYet(bytes32 fligthKey) {
       require(flights[fligthKey].insureesCheck[msg.sender] == false, "Passenger already ensureed");
+      _;
+    }
+
+    /**
+    * @dev check payed amount
+    */
+    modifier checkPayedAmount() {
+      require(msg.value <= 1 ether && msg.value > 0, "Please sent a correct value");
       _;
     }
     /********************************************************************************************/
@@ -331,17 +349,30 @@ contract FlightSuretyData is ReentrancyGuard{
       isAlreadyResgisteredFligth(fligthKey)
       isNotAFlightInProgress(fligthKey)
       isNotInsureedYet(fligthKey)
+      checkPayedAmount
       nonReentrant
     {
+      _secureBuy(passenger, fligthKey);
+    }
 
+    function _secureBuy(
+      address passenger,
+      bytes32 fligthKey
+    ) 
+      private 
+      nonReentrant 
+    {
       Surety memory suretyReference;
-      suretyReference.passenger = payable(passenger);
+      suretyReference.passenger = passenger;
       suretyReference.fligthKey = fligthKey;
-
-      insurees[msg.sender].push(suretyReference);
+      suretyReference.value = msg.value;
+      //Assign a surety to a passenger 
+      insurees[msg.sender][fligthKey] = suretyReference;
+      //Update passenger's sureties array
+      insureesByPerson[msg.sender].push(fligthKey);
+      //Update sureties data in flight info
       flights[fligthKey].insureesCheck[msg.sender] = true;
       flights[fligthKey].insurees.push(msg.sender);
-      
     }
 
     /**
