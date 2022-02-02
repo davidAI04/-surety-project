@@ -197,6 +197,16 @@ contract FlightSuretyData is ReentrancyGuard{
       require(msg.value <= 1 ether && msg.value > 0, "Please sent a correct value");
       _;
     }
+
+    /**
+    * @dev check if is already credited and there are enough funds to payout
+    */
+    modifier isAValidWithdraw(bytes32 flightKey) {
+      Surety memory suretyReference =  insurees[msg.sender][flightKey];
+      require(address(this).balance >= suretyReference.payoutValue, "Contract hasn't enough funds");
+      require(suretyReference.payoutValue > 0 && suretyReference.credited != false, "You're not authorized to withdraw");
+      _;
+    }
     /********************************************************************************************/
     /*                                       UTILITY FUNCTIONS                                  */
     /********************************************************************************************/
@@ -414,12 +424,15 @@ contract FlightSuretyData is ReentrancyGuard{
      *  @dev Transfers eligible payout funds to insuree
      *
     */
-    function pay
-                            (
-                            )
-                            external
-                            pure
+    function pay(
+      bytes32 flightKey
+    )
+      external
+      requireIsOperational
+      isAValidWithdraw(flightKey)
+      nonReentrant
     {
+
     }
 
 
