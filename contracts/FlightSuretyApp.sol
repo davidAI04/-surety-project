@@ -37,6 +37,10 @@ abstract contract FlightSuretyData {
     bytes32 fligthKey
   ) external {}
 
+  function processFlightStatus(
+    bytes32 fligthKey,
+    uint8 statusCode
+  ) external{}
 
 }
 
@@ -194,15 +198,17 @@ contract FlightSuretyApp {
     *
     */  
     function processFlightStatus
-                                (
-                                    address airline,
-                                    string memory flight,
-                                    uint256 timestamp,
-                                    uint8 statusCode
-                                )
-                                internal
-                                pure
+    (
+      address airline,
+      string memory flight,
+      uint256 timestamp,
+      uint8 statusCode
+    )
+      internal
+      requireIsOperational
     {
+      bytes32 flightKey = getFlightKey(airline, flight, timestamp);
+      contractData.processFlightStatus(flightKey, statusCode);
     }
 
 

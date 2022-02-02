@@ -46,6 +46,8 @@ contract FlightSuretyData is ReentrancyGuard{
       address passenger; //ensured person address
       bytes32 fligthKey; //fligth to be ensured
       uint256 value; //Value payed for insurance
+      uint256 payoutValue;
+      bool credited;
     }
 
     /********************************************************************************************/
@@ -375,15 +377,36 @@ contract FlightSuretyData is ReentrancyGuard{
       flights[fligthKey].insurees.push(msg.sender);
     }
 
+    function processFlightStatus(
+    bytes32 fligthKey,
+    uint8 statusCode
+    ) 
+      external
+      requireIsOperational
+      isAlreadyResgisteredFligth(fligthKey)
+      nonReentrant
+    {
+      flights[fligthKey].statusCode = statusCode;
+      if(statusCode == 20) {
+        _creditInsurees(fligthKey);
+      }
+    }
+
     /**
      *  @dev Credits payouts to insurees
     */
-    function creditInsurees
-                                (
-                                )
-                                external
-                                pure
+    function _creditInsurees(
+      bytes32 fligthKey
+    )
+      private
+      requireIsOperational
+      nonReentrant
     {
+      for (uint256 index = 0; index < flights[fligthKey].insurees.length; index++) {
+        Surety memory suretyReference = insurees[flights[fligthKey].insurees[index]][fligthKey];
+        suretyReference.credited = true;
+        suretyReference.payoutValue = suretyReference.value + (suretyReference.value / 2);
+      }      
     }
     
 
