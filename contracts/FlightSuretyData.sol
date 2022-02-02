@@ -16,10 +16,10 @@ contract FlightSuretyData is ReentrancyGuard{
     mapping(address => Airline) private airlines; //mapping for all airlines
     mapping(address => mapping(address => bool)) private voteTracker; //Allow track an airline votes to accept another airline
     mapping(bytes32 => Flight) private flights; //Flights registration
-    //Create a One-to-Many relationship between passengers and their fligth insurance. 
+    //Create a One-to-Many relationship between passengers and their flight insurance. 
     //To know how many sureties has a passenger
     mapping(address => bytes32[]) private insureesByPerson; 
-    mapping(address => mapping(bytes32 => Surety)) insurees; //Information for a fligth insurance associated to an specific passenger    
+    mapping(address => mapping(bytes32 => Surety)) insurees; //Information for a flight insurance associated to an specific passenger    
 
     /**
     * STRUCTS 
@@ -35,7 +35,7 @@ contract FlightSuretyData is ReentrancyGuard{
     struct Flight {
         bool isRegistered; //If the flight is already registered
         uint8 statusCode; //The flight status code 
-        string flightIdentifier; //The fligth identifier
+        string flightIdentifier; //The flight identifier
         uint256 updatedTimestamp;        
         address airline;//Airline address
         address[] insurees; //create a One-to-Many relationship with ensured passengers
@@ -44,7 +44,7 @@ contract FlightSuretyData is ReentrancyGuard{
 
     struct Surety {
       address passenger; //ensured person address
-      bytes32 fligthKey; //fligth to be ensured
+      bytes32 flightKey; //flight to be ensured
       uint256 value; //Value payed for insurance
       uint256 payoutValue;
       bool credited;
@@ -159,34 +159,34 @@ contract FlightSuretyData is ReentrancyGuard{
     }
 
     /**
-    * @dev Modifier that requires the fligth is NOT ALREADY registered
+    * @dev Modifier that requires the flight is NOT ALREADY registered
     */
-    modifier isAFligthNotResgisteredYet(bytes32 fligthKey) {
-      require(flights[fligthKey].isRegistered != true, "Fligth already registered");
+    modifier isAFlightNotResgisteredYet(bytes32 flightKey) {
+      require(flights[flightKey].isRegistered != true, "Flight already registered");
       _;
     }
 
     /**
-    * @dev Modifier that requires the fligth is ALREADY registered
+    * @dev Modifier that requires the flight is ALREADY registered
     */
-    modifier isAlreadyResgisteredFligth(bytes32 fligthKey) {
-      require(flights[fligthKey].isRegistered != true, "Fligth is not registered");
+    modifier isAlreadyResgisteredFlight(bytes32 flightKey) {
+      require(flights[flightKey].isRegistered != true, "Flight is not registered");
       _;
     }
 
     /**
     * @dev check that the flight is not already in progress
     */
-    modifier isNotAFlightInProgress(bytes32 fligthKey) {
-      require(flights[fligthKey].statusCode == 0, "Fligth is already in progress");
+    modifier isNotAFlightInProgress(bytes32 flightKey) {
+      require(flights[flightKey].statusCode == 0, "Flight is already in progress");
       _;
     }
 
     /**
     * @dev check that the passenger is not insureed yet
     */
-    modifier isNotInsureedYet(bytes32 fligthKey) {
-      require(flights[fligthKey].insureesCheck[msg.sender] == false, "Passenger already ensureed");
+    modifier isNotInsureedYet(bytes32 flightKey) {
+      require(flights[flightKey].insureesCheck[msg.sender] == false, "Passenger already ensureed");
       _;
     }
 
@@ -331,15 +331,15 @@ contract FlightSuretyData is ReentrancyGuard{
         uint256 timestamp,
         address airline,
         string memory flightIdentifier,
-        bytes32 fligthKey
+        bytes32 flightKey
       )
       external 
       requireIsOperational
       isAEnableAirline(airline)
-      isAFligthNotResgisteredYet(fligthKey)
+      isAFlightNotResgisteredYet(flightKey)
       nonReentrant
     { 
-      Flight storage flightReference = flights[fligthKey];
+      Flight storage flightReference = flights[flightKey];
       flightReference.isRegistered = true;
       flightReference.statusCode = statusCode;
       flightReference.flightIdentifier = flightIdentifier;
@@ -353,52 +353,52 @@ contract FlightSuretyData is ReentrancyGuard{
     */   
     function buy(
       address passenger,
-      bytes32 fligthKey
+      bytes32 flightKey
     )
       external
       payable
       requireIsOperational
-      isAlreadyResgisteredFligth(fligthKey)
-      isNotAFlightInProgress(fligthKey)
-      isNotInsureedYet(fligthKey)
+      isAlreadyResgisteredFlight(flightKey)
+      isNotAFlightInProgress(flightKey)
+      isNotInsureedYet(flightKey)
       checkPayedAmount
       nonReentrant
     {
-      _secureBuy(passenger, fligthKey);
+      _secureBuy(passenger, flightKey);
     }
 
     function _secureBuy(
       address passenger,
-      bytes32 fligthKey
+      bytes32 flightKey
     ) 
       private 
       nonReentrant 
     {
       Surety memory suretyReference;
       suretyReference.passenger = passenger;
-      suretyReference.fligthKey = fligthKey;
+      suretyReference.flightKey = flightKey;
       suretyReference.value = msg.value;
       //Assign a surety to a passenger 
-      insurees[msg.sender][fligthKey] = suretyReference;
+      insurees[msg.sender][flightKey] = suretyReference;
       //Update passenger's sureties array
-      insureesByPerson[msg.sender].push(fligthKey);
+      insureesByPerson[msg.sender].push(flightKey);
       //Update sureties data in flight info
-      flights[fligthKey].insureesCheck[msg.sender] = true;
-      flights[fligthKey].insurees.push(msg.sender);
+      flights[flightKey].insureesCheck[msg.sender] = true;
+      flights[flightKey].insurees.push(msg.sender);
     }
 
     function processFlightStatus(
-    bytes32 fligthKey,
+    bytes32 flightKey,
     uint8 statusCode
     ) 
       external
       requireIsOperational
-      isAlreadyResgisteredFligth(fligthKey)
+      isAlreadyResgisteredFlight(flightKey)
       nonReentrant
     {
-      flights[fligthKey].statusCode = statusCode;
+      flights[flightKey].statusCode = statusCode;
       if(statusCode == 20) {
-        _creditInsurees(fligthKey);
+        _creditInsurees(flightKey);
       }
     }
 
@@ -406,14 +406,14 @@ contract FlightSuretyData is ReentrancyGuard{
      *  @dev Credits payouts to insurees
     */
     function _creditInsurees(
-      bytes32 fligthKey
+      bytes32 flightKey
     )
       private
       requireIsOperational
       nonReentrant
     {
-      for (uint256 index = 0; index < flights[fligthKey].insurees.length; index++) {
-        Surety memory suretyReference = insurees[flights[fligthKey].insurees[index]][fligthKey];
+      for (uint256 index = 0; index < flights[flightKey].insurees.length; index++) {
+        Surety memory suretyReference = insurees[flights[flightKey].insurees[index]][flightKey];
         suretyReference.credited = true;
         suretyReference.payoutValue = suretyReference.value + (suretyReference.value / 2);
       }      
@@ -432,7 +432,9 @@ contract FlightSuretyData is ReentrancyGuard{
       isAValidWithdraw(flightKey)
       nonReentrant
     {
-
+    
+      payable(insurees[msg.sender][flightKey].passenger)
+        .transfer(insurees[msg.sender][flightKey].payoutValue);
     }
 
 

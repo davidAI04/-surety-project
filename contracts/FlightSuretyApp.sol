@@ -34,11 +34,11 @@ abstract contract FlightSuretyData {
     uint256 timestamp,
     address airline,
     string memory flightIdentifier,
-    bytes32 fligthKey
+    bytes32 flightKey
   ) external {}
 
   function processFlightStatus(
-    bytes32 fligthKey,
+    bytes32 flightKey,
     uint8 statusCode
   ) external{}
 
@@ -184,12 +184,12 @@ contract FlightSuretyApp {
       external 
       requireIsOperational
     {
-      bytes32 fligthKey = getFlightKey(msg.sender, flightIdentifier, timestamp);
+      bytes32 flightKey = getFlightKey(msg.sender, flightIdentifier, timestamp);
       contractData.registerFlight(
         STATUS_CODE_UNKNOWN, timestamp, 
         msg.sender, 
         flightIdentifier, 
-        fligthKey
+        flightKey
       );
     }
     
